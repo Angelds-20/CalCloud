@@ -1,0 +1,504 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CalCloud - Monitor de Autoscaling Autónomo</title>
+    <!-- Google Fonts: Inter & Roboto Mono -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Roboto+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+    <!-- CSS Estilos Custom -->
+    <link rel="stylesheet" href="style.css">
+    <!-- Chart.js para gráficos -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Configuración e Importación de MathJax para ecuaciones dinámicas -->
+    <script>
+        window.MathJax = {
+            tex: {
+                inlineMath: [['$', '$'], ['\\(', '\\)']],
+                displayMath: [['$$', '$$'], ['\\[', '\\]']]
+            },
+            svg: {
+                fontCache: 'global'
+            }
+        };
+    </script>
+    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+</head>
+<body>
+    <header>
+        <div class="logo-container">
+            <span class="logo-icon">
+                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M17.5 19A3.5 3.5 0 0 0 21 15.5c0-2.79-2.54-4.5-5-4.5-.47 0-.89.09-1.25.26A5 5 0 0 0 5 12c0 2.2 1.34 4.09 3.25 4.88"></path><path d="m13 14-3 5h5l-3 5" fill="currentColor"></path></svg>
+            </span>
+            <span class="logo-text">CalCloud</span>
+        </div>
+
+        <nav class="header-nav">
+            <a href="#dashboard" class="nav-tab active" id="tab-link-dashboard">Dashboard</a>
+            <a href="#live" class="nav-tab" id="tab-link-live">Simulación</a>
+            <a href="#math" class="nav-tab" id="tab-link-math">Matemáticas</a>
+            <a href="#config" class="nav-tab" id="tab-link-config">Configuración</a>
+            <a href="#about" class="nav-tab" id="tab-link-about">Acerca de</a>
+        </nav>
+        
+        <div class="header-right">
+            <span class="header-cost-label">Costo</span>
+            <span id="stat-cost" class="header-cost-value">$0.00</span>
+        </div>
+    </header>
+
+    <main class="grid-layout">
+        <!-- Fila 1: KPIs Grandes (Disponibles en todo momento) -->
+        <div class="kpis-row">
+            <!-- KPI 1: Tráfico -->
+            <div class="stat-card kpi-traffic">
+                <span class="stat-label">Tráfico</span>
+                <span id="stat-traffic" class="stat-value">0 req/s</span>
+                <div class="stat-footer" id="stat-traffic-rate">
+                    <span id="stat-traffic-trend-icon"></span><span>0.0%</span>
+                </div>
+            </div>
+            
+            <!-- KPI 2: Servidores -->
+            <div class="stat-card kpi-servers">
+                <span class="stat-label">Servidores</span>
+                <span id="stat-servers" class="stat-value">0 / 10</span>
+                <div class="stat-footer" id="stat-servers-status" style="display: flex; flex-direction: column; gap: 6px; width: 100%; margin-top: 8px;">
+                    <div style="display: flex; gap: 0.75rem; font-size: 0.7rem;">
+                        <span style="color: var(--success)">● Activos <strong id="kpi-srv-active">0</strong></span>
+                        <span style="color: var(--warning)">○ Boot <strong id="kpi-srv-boot">0</strong></span>
+                        <span style="color: var(--text-muted)">○ Inactivos <strong id="kpi-srv-inactive">10</strong></span>
+                    </div>
+                    <div>
+                        <span class="stat-label" style="font-size: 8px;">Estado</span>
+                        <span id="stat-servers-desc" style="display: block; font-size: 0.75rem; font-weight: 600; color: var(--success);">Eficiencia Óptima</span>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- KPI 3: Latencia -->
+            <div class="stat-card kpi-latency">
+                <span class="stat-label">Latencia</span>
+                <span id="stat-latency" class="stat-value">0 ms</span>
+                <div class="stat-footer" id="stat-latency-status" style="font-weight: 600;">
+                    <span id="latency-status-emoji">🟢</span> <span id="latency-status-text">Estable</span>
+                </div>
+            </div>
+            
+            <!-- KPI 4: SLA -->
+            <div class="stat-card kpi-sla">
+                <span class="stat-label">SLA</span>
+                <span id="stat-cost-sla" class="stat-value">$0.00</span>
+                <div class="stat-footer" id="stat-sla-status">
+                    0 s fuera de SLA
+                </div>
+            </div>
+        </div>
+
+        <!-- ================= TAB 1: SIMULACIÓN ================= -->
+        <section id="view-dashboard" class="tab-content active-tab">
+
+            <!-- AI Chat Hero - Full width at top -->
+            <div class="card" style="display: flex; flex-direction: column; min-height: 360px; max-height: 50vh;">
+                <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px;">
+                    <span style="display:inline-flex; align-items:center; gap:6px; font-weight: 600; font-size: 10px; color: var(--text-tertiary); text-transform: uppercase; letter-spacing: 0.7px;">
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>
+                        <span>Consola de Operaciones IA</span>
+                    </span>
+                    <span style="display: flex; align-items: center; gap: 6px; font-size: 9px; color: var(--text-tertiary); font-weight: 500; font-family: var(--font-mono);">
+                        <span id="ai-agent-status" style="display: inline-flex; align-items: center; gap: 4px;">
+                            <span style="width: 5px; height: 5px; border-radius: 50%; background: var(--green); display: inline-block;"></span>
+                            <span>Activo</span>
+                        </span>
+                        <span style="opacity: 0.4;">|</span>
+                        <span>DeepSeek</span>
+                    </span>
+                </div>
+
+                <!-- Input field - the protagonist, at the top -->
+                <div style="display: flex; gap: 6px; margin-bottom: 12px;">
+                    <input type="text" id="ai-chat-input" placeholder="Describe el escenario que deseas simular." style="flex-grow: 1; background: var(--bg-secondary); border: 1px solid var(--border); border-radius: var(--radius-sm); color: var(--text); font-size: 13px; padding: 10px 12px; outline: none; font-family: var(--font);" autocomplete="off">
+                    <button id="btn-ai-send" style="background: var(--accent); color: #fff; border: none; padding: 10px 18px; border-radius: var(--radius-sm); font-weight: 600; cursor: pointer; font-size: 12px; font-family: var(--font); transition: opacity 0.15s;">
+                        Enviar
+                    </button>
+                </div>
+
+                <!-- Chat messages area -->
+                <div id="ai-chat-messages" style="flex-grow: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; font-size: 12px; border-top: 1px solid var(--border); padding-top: 10px;">
+                    <div style="background: var(--accent-dim); border: 1px dashed var(--accent-border); border-radius: var(--radius-sm); padding: 10px; line-height: 1.5; color: var(--text-secondary); font-size: 11px;">
+                        <strong style="color: var(--text);">Ejemplos:</strong>
+                        <ul style="margin: 4px 0 0 14px; padding: 0; list-style-type: square; color: var(--text-tertiary); font-size: 11px;">
+                            <li>Simula un Black Friday</li>
+                            <li>Detecta un DDoS</li>
+                            <li>Optimiza costos</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Controls row below chat -->
+            <div class="row-two">
+                <!-- Columna Controles Operativos (Sidebar) -->
+                <aside class="sidebar-card card">
+                    <div class="card-title">
+                        <span style="display:inline-flex; align-items:center; gap:4px;">
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="21" x2="4" y2="14"></line><line x1="4" y1="10" x2="4" y2="3"></line><line x1="12" y1="21" x2="12" y2="12"></line><line x1="12" y1="8" x2="12" y2="3"></line><line x1="20" y1="21" x2="20" y2="16"></line><line x1="20" y1="12" x2="20" y2="3"></line><line x1="2" y1="14" x2="6" y2="14"></line><line x1="10" y1="8" x2="14" y2="8"></line><line x1="18" y1="16" x2="22" y2="16"></line></svg>
+                        </span>
+                        Control de Simulación
+                    </div>
+                    
+                    <!-- Control de Modo (Automático / Manual) -->
+                    <div class="param-section">
+                        <button id="btn-toggle-sim" class="btn-simulation-control active" style="width: 100%; padding: 8px; border-radius: 6px; font-weight: 600; font-size: 11px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px;">
+                            <span id="play-pause-icon-container">
+                                <svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="4" width="4" height="16"></rect><rect x="14" y="4" width="4" height="16"></rect></svg>
+                            </span>
+                            <span id="play-pause-text">MODO AUTOMÁTICO</span>
+                        </button>
+                        <div id="sim-status-text" style="font-size: 9px; color: var(--green); text-align: center; margin-top: 6px; font-weight: 600; letter-spacing: 0.4px; text-transform: uppercase;">
+                            <span style="background-color: var(--green); width: 4px; height: 4px; border-radius: 50%; display: inline-block; vertical-align: middle; margin-right: 4px;"></span> TRÁFICO DINÁMICO ACTIVO
+                        </div>
+                    </div>
+                    
+                    <!-- Grupo 1: Tráfico Activo -->
+                    <div class="param-section">
+                        <div class="control-group">
+                            <div class="control-label">
+                                <span>Amplitud</span>
+                                <span id="val-traffic" class="control-value">120 req/s</span>
+                            </div>
+                            <input type="range" id="slider-traffic" min="40" max="200" value="120">
+                        </div>
+                        <div class="control-group" style="margin-top: 12px;">
+                            <div class="control-label">
+                                <span>Anomalía <span class="help-icon" title="Simula un pico repentino o ataque DDoS">ⓘ</span></span>
+                                <span id="val-anomaly" class="control-value">0%</span>
+                            </div>
+                            <input type="range" id="slider-anomaly" min="0" max="100" value="0">
+                        </div>
+                    </div>
+
+                    <!-- Grupo 2: Simulación y Estrategia -->
+                    <div class="param-section" style="margin-bottom: 0;">
+                        <div class="param-section-title">Estrategia & Simulación</div>
+                        <div class="strategy-select-container">
+                            <button id="btn-strategy-reactive" class="btn-strategy">
+                                <span style="display:inline-flex; align-items:center;">
+                                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon></svg>
+                                </span>
+                                <span>Reactiva</span>
+                                <span class="strategy-desc">Umbrales Fijos</span>
+                            </button>
+                            <button id="btn-strategy-calcloud" class="btn-strategy active">
+                                <span style="display:inline-flex; align-items:center;">
+                                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 12c-2-2.67-4-4-6-4a4 4 0 1 0 0 8c2 0 4-1.33 6-4Zm0 0c2 2.67 4 4 6 4a4 4 0 1 0 0-8c-2 0-4 1.33-6 4Z"></path></svg>
+                                </span>
+                                <span>CalCloud</span>
+                                <span class="strategy-desc">Diferencial</span>
+                            </button>
+                        </div>
+                        <div class="control-group" style="margin-top: 12px;">
+                            <div class="control-label">
+                                <span>Velocidad de Simulación</span>
+                                <span id="val-speed" class="control-value">1x</span>
+                            </div>
+                            <input type="range" id="slider-speed" min="0.5" max="4" value="1" step="0.5">
+                        </div>
+                    </div>
+                </aside>
+                <div class="dashboard-main-flow"></div>
+            </div>
+        </section>
+
+        <!-- ================= TAB 2: DASHBOARD EN VIVO ================= -->
+        <section id="view-live" class="tab-content hidden-tab">
+            <div style="display: grid; grid-template-columns: 1.8fr 1.2fr; gap: 1.25rem;">
+                
+                <!-- Columna Izquierda: Gráfico y Servidores -->
+                <div style="display: flex; flex-direction: column; gap: 1.25rem;">
+                    <!-- Gráfico Principal Dominante -->
+                    <div class="main-chart-card card" style="flex-grow: 1; min-height: 300px;">
+                        <div class="card-title">
+                            <span style="display:inline-flex; align-items:center; gap:0.25rem;">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline></svg>
+                            </span>
+                            MONITOREO EN TIEMPO REAL: FLUJO DE TRÁFICO (CON FILTRO EMA)
+                        </div>
+                        <div class="chart-container-large" style="height: 240px;">
+                            <canvas id="chart-realtime"></canvas>
+                        </div>
+                    </div>
+
+                    <!-- Rack de Servidores Animados -->
+                    <div class="servers-card card">
+                        <div class="card-title">
+                            <span style="display:inline-flex; align-items:center; gap:0.25rem;">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="20" height="8" rx="2" ry="2"></rect><rect x="2" y="14" width="20" height="8" rx="2" ry="2"></rect><line x1="6" y1="6" x2="6.01" y2="6"></line><line x1="6" y1="18" x2="6.01" y2="18"></line></svg>
+                            </span>
+                            INFRAESTRUCTURA DE SERVIDORES EN VIVO (CON COOLDOWN DE ARRANQUE)
+                        </div>
+                        <div class="sim-viewport">
+                            <div class="sim-side right" id="servers-container" style="width: 100%;">
+                                <!-- Renderizado dinámico en JS -->
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Columna Derecha: Análisis de Costo y Tabla Comparativa -->
+                <div style="display: flex; flex-direction: column; gap: 1.25rem;">
+                    <!-- Curva de Costo Matemático -->
+                    <div class="cost-curve-card card" style="flex-grow: 1; min-height: 250px;">
+                        <div class="card-title">
+                            <span style="display:inline-flex; align-items:center; gap:0.25rem;">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"></path><path d="M18.7 8l-5.1 5.2-2.8-2.7L7 14.3"></path></svg>
+                            </span>
+                            Curva de Costo $C(S)$ y Mínimo Global
+                        </div>
+                        <div class="chart-container-large" style="height: 180px;">
+                            <canvas id="chart-optimization"></canvas>
+                        </div>
+                    </div>
+
+                    <!-- Tabla Comparativa -->
+                    <div class="comparison-card card">
+                        <div class="card-title">
+                            <span style="display:inline-flex; align-items:center; gap:0.25rem;">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"></path><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"></path></svg>
+                            </span>
+                            Comparativa (Modelo AWS Tiers)
+                        </div>
+                        <table class="comparison-table" style="font-size: 0.70rem;">
+                            <thead>
+                                <tr>
+                                    <th>Estrategia</th>
+                                    <th>Costo</th>
+                                    <th>Multa SLA</th>
+                                    <th>Latencia</th>
+                                    <th>Colapsos</th>
+                                    <th>Cambios</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr id="row-calcloud-stats">
+                                    <td><span class="badge-strategy-table calcloud">CalCloud</span></td>
+                                    <td id="comp-cost-calcloud" style="font-weight: 700;">$0.00</td>
+                                    <td id="comp-sla-calcloud">$0.00</td>
+                                    <td id="comp-latency-calcloud">0.0 ms</td>
+                                    <td id="comp-violations-calcloud">0 s</td>
+                                    <td id="comp-oscillations-calcloud">0</td>
+                                </tr>
+                                <tr id="row-reactive-stats">
+                                    <td><span class="badge-strategy-table reactive">Reactiva</span></td>
+                                    <td id="comp-cost-reactive" style="font-weight: 700;">$0.00</td>
+                                    <td id="comp-sla-reactive">$0.00</td>
+                                    <td id="comp-latency-reactive">0.0 ms</td>
+                                    <td id="comp-violations-reactive">0 s</td>
+                                    <td id="comp-oscillations-reactive">0</td>
+                                </tr>
+                                <tr class="diff-row" style="background: var(--bg-main); font-weight: 700;">
+                                    <td>Ahorro CalCloud</td>
+                                    <td id="comp-cost-diff" style="color: var(--success);">$0.00</td>
+                                    <td id="comp-sla-diff" style="color: var(--success);">$0.00</td>
+                                    <td id="comp-latency-diff" style="color: var(--success);">0.0 ms</td>
+                                    <td id="comp-violations-diff" style="color: var(--success);">0 s</td>
+                                    <td id="comp-oscillations-diff" style="color: var(--success);">0</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ================= TAB 3: FUNDAMENTO MATEMÁTICO ================= -->
+        <section id="view-math" class="tab-content hidden-tab">
+            <div class="card">
+                <div class="card-title">
+                    <span style="display:inline-flex; align-items:center; gap:0.25rem;">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1-2.5-2.5Z"></path><path d="M6 6h10"></path><path d="M6 10h10"></path></svg>
+                    </span>
+                    Fundamento Matemático
+                </div>
+                <div class="math-container" style="display: grid; grid-template-columns: 1.5fr 1fr; gap: 1.5rem;">
+                    <div class="math-formula-box" style="grid-column: span 2;">
+                        <span class="math-badge">1. Razón de Cambio (Derivada como Velocidad)</span>
+                        <div style="font-size: 1.25rem; padding: 1rem 0; text-align: center;">
+                            $$v(t) = \frac{dR}{dt}$$
+                        </div>
+                        <p class="banner-text" style="font-size: 0.85rem; margin-bottom: 0.75rem;">
+                            $v(t)$: velocidad del tráfico. Positiva → subiendo, negativa → bajando.
+                        </p>
+                        <div class="formula-values" id="math-val-diff">
+                            Velocidad instantánea de demanda ($\frac{dR}{dt}$) = <span id="math-rate-val">0.00</span> req/s²
+                        </div>
+                    </div>
+                    
+                    <div class="math-formula-box">
+                        <span class="math-badge">2. Proyección Lineal (Diferencial)</span>
+                        <div style="font-size: 1.2rem; padding: 1rem 0; text-align: center;">
+                            $$R_{\text{pred}} = R(t) + \frac{dR}{dt} \cdot T_a$$
+                        </div>
+                        <p class="banner-text" style="font-size: 0.8rem; margin-bottom: 0.75rem;">
+                            $R_{pred}$: tráfico estimado cuando los servidores nuevos estén listos ($T_a$ segundos después).
+                        </p>
+                        <div class="formula-values" id="math-val-diff-proj">
+                            Diferencial ($dR = v \cdot T_a$) = <span id="math-dr-val">0.00</span> req <br>
+                            Tráfico Proyectado ($R_{\text{pred}}$) = <span id="math-lambda-val">0.00</span> req/s
+                        </div>
+                    </div>
+
+                    <div class="math-formula-box">
+                        <span class="math-badge">3. Cálculo de Servidores Necesarios</span>
+                        <div style="font-size: 1.2rem; padding: 1rem 0; text-align: center;">
+                            $$S = \text{Math.ceil}\left( \frac{R_{\text{pred}}}{\mu} \right)$$
+                        </div>
+                        <p class="banner-text" style="font-size: 0.8rem; margin-bottom: 0.75rem;">
+                            $S$: servidores necesarios para soportar $R_{pred}$ dada la capacidad $\mu$ de cada uno.
+                        </p>
+                        <div class="formula-values" id="math-val-opt">
+                            Costo estimado actual = <span id="math-cost-opt">$0.00</span> /h <br>
+                            Latencia estimada = <span id="math-latency-val">0.000</span> s
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ================= TAB 4: CONFIGURACIÓN ================= -->
+        <section id="view-config" class="tab-content hidden-tab">
+            <div class="card" style="display: grid; grid-template-columns: 1fr 1fr; gap: 2rem;">
+                <!-- Configuración de Infraestructura -->
+                <div>
+                    <div class="card-title">
+                        <span style="display:inline-flex; align-items:center; gap:0.25rem;">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="20" height="8" rx="2" ry="2"></rect><rect x="2" y="14" width="20" height="8" rx="2" ry="2"></rect><line x1="6" y1="6" x2="6.01" y2="6"></line><line x1="6" y1="18" x2="6.01" y2="18"></line></svg>
+                        </span>
+                        Parámetros de Infraestructura Cloud
+                    </div>
+
+                    <!-- Tiempo de arranque Ta -->
+                    <div class="control-group" style="margin-bottom: 1.5rem;">
+                        <div class="control-label">
+                            <span>Tiempo de Arranque Servidores ($T_a$)</span>
+                            <span id="val-startup" class="control-value">5 s</span>
+                        </div>
+                        <input type="range" id="slider-startup" min="1" max="15" value="5" step="1">
+                        <span class="control-explanation">Tiempo promedio (ticks) requerido por el proveedor de nube para aprovisionar y encender una máquina virtual.</span>
+                    </div>
+
+                    <!-- EMA smoothing alpha -->
+                    <div class="control-group" style="margin-bottom: 1.5rem;">
+                        <div class="control-label">
+                            <span>Factor de Suavizado EMA ($\alpha_{\text{ema}}$)</span>
+                            <span id="val-alpha" class="control-value">0.25</span>
+                        </div>
+                        <input type="range" id="slider-alpha" min="0.05" max="0.8" value="0.25" step="0.05">
+                        <span class="control-explanation">Ajusta el peso del suavizado de tráfico. Valores más bajos reducen más el ruido estocástico pero añaden delay.</span>
+                    </div>
+
+                    <!-- Capacidad por Servidor -->
+                    <div class="control-group">
+                        <div class="control-label">
+                            <span>Capacidad Procesamiento Servidor ($\mu$)</span>
+                            <span id="val-mu" class="control-value">30 req/s</span>
+                        </div>
+                        <input type="range" id="slider-mu" min="15" max="60" value="30">
+                        <span class="control-explanation">Tasa de peticiones que procesa cada servidor individual por segundo.</span>
+                    </div>
+                </div>
+
+                <!-- Configuración Financiera -->
+                <div>
+                    <div class="card-title">
+                        <span style="display:inline-flex; align-items:center; gap:0.25rem;">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="1" x2="12" y2="23"></line><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path></svg>
+                        </span>
+                        Ajustes Financieros & SLA
+                    </div>
+
+                    <!-- Costo de Servidor -->
+                    <div class="control-group" style="margin-bottom: 1.5rem;">
+                        <div class="control-label">
+                            <span>Costo Servidor Base ($C_{serv}/h$)</span>
+                            <span id="val-cserver" class="control-value">$10.0</span>
+                        </div>
+                        <input type="range" id="slider-cserver" min="2" max="30" value="10" step="0.5">
+                        <span class="control-explanation">Costo base de instancias reservadas. Instancias on-demand adicionales (4+ servidores) aplican tarifa extra del 50%.</span>
+                    </div>
+
+                    <!-- Costo por Penalización de Latencia -->
+                    <div class="control-group">
+                        <div class="control-label">
+                            <span>Penalización SLA Base ($C_{sla}/s$)</span>
+                            <span id="val-csla" class="control-value">$2.5</span>
+                        </div>
+                        <input type="range" id="slider-csla" min="0.5" max="10" value="2.5" step="0.1">
+                        <span class="control-explanation">Multa por segundo de latencia. Se aplican penalizaciones escalonadas (Tiers) según los ms reales de delay.</span>
+                    </div>
+                </div>
+            </div>
+            <div class="card" style="margin-top: 1rem;">
+                <div class="card-title">
+                    <span style="display:inline-flex; align-items:center; gap:0.25rem;">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"></path></svg>
+                    </span>
+                    API Key
+                </div>
+                <div style="display: flex; align-items: center; gap: 8px;">
+                    <input type="password" id="input-api-key" placeholder="sk-..." style="flex-grow: 1; background: var(--bg-secondary); border: 1px solid var(--border); border-radius: var(--radius-sm); color: var(--text); font-family: var(--font-mono); font-size: 13px; padding: 8px 12px; outline: none;" autocomplete="off">
+                    <button id="btn-save-api-key" style="background: var(--accent); color: #fff; border: none; padding: 8px 16px; border-radius: var(--radius-sm); font-weight: 600; cursor: pointer; font-size: 12px; font-family: var(--font);">Guardar</button>
+                </div>
+            </div>
+        </section>
+
+        <!-- ================= TAB 5: ACERCA DE ================= -->
+        <section id="view-about" class="tab-content hidden-tab">
+            <div class="card">
+                <div class="card-title">
+                    <span style="display:inline-flex; align-items:center; gap:0.25rem;">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>
+                    </span>
+                    Información Académica del Proyecto
+                </div>
+                <div style="display: flex; flex-direction: column; gap: 1.5rem;">
+                    <div>
+                        <h3 style="font-weight: 700; font-size: 1rem; margin-bottom: 0.5rem;">Objetivo de CalCloud</h3>
+                        <p style="font-weight: 300; font-size: 0.9rem; color: var(--text-muted); line-height: 1.6;">
+                            Este proyecto simula y demuestra cuantitativamente la aplicación del Cálculo Diferencial en la ingeniería de software moderna, modelando la optimización autónoma de servidores en la nube. A través de aproximaciones lineales (diferenciales) y derivadas de funciones reales, el software detecta aceleraciones en la demanda web y calcula el número de instancias óptimas para equilibrar el presupuesto financiero y la latencia del sistema.
+                        </p>
+                    </div>
+
+                    <div style="border-top: 1px solid var(--card-border); padding-top: 1.25rem; display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem;">
+                        <div>
+                            <h4 style="font-weight: 700; font-size: 0.9rem; margin-bottom: 0.5rem; color: var(--text-main);">Integrantes del Grupo</h4>
+                            <ul style="list-style: none; font-size: 0.85rem; color: var(--text-muted); display: flex; flex-direction: column; gap: 0.35rem;">
+                                <li>• Yossadec Cáceres</li>
+                                <li>• Patricio Moya</li>
+                                <li>• Cesar Contreras</li>
+                                <li>• Nicolas Saldia</li>
+                            </ul>
+                        </div>
+                        <div>
+                            <h4 style="font-weight: 700; font-size: 0.9rem; margin-bottom: 0.5rem; color: var(--text-main);">Detalles del Curso</h4>
+                            <p style="font-size: 0.85rem; color: var(--text-muted); line-height: 1.5;">
+                                <strong>Asignatura:</strong> Cálculo Diferencial <br>
+                                <strong>Institución:</strong> INACAP Talca <br>
+                                <strong>Docente:</strong> Marcelo Andrés Sepúlveda Albornoz
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <!-- Contenedor de Toasts para Alertas en Vivo -->
+    <div id="toast-container" class="toast-container"></div>
+
+    <!-- JS Aplicación principal -->
+    <script src="app.js"></script>
+</body>
+</html>
