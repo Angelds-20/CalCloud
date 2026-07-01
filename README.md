@@ -1,18 +1,15 @@
 # CalCloud
 
-Simulador interactivo de autoscaling autónomo para la asignatura de **Cálculo Diferencial** en **INACAP Talca**. Compara políticas predictivas basadas en la velocidad de cambio (derivada) frente a umbrales reactivos tradicionales.
+CalCloud es un simulador interactivo de autoscaling desarrollado para la asignatura de Cálculo Diferencial en INACAP Talca. Compara el uso de políticas de escalado predictivas (basadas en la derivada del tráfico) con políticas reactivas tradicionales de umbrales estáticos.
 
----
+## Instalación y ejecución
 
-## 🚀 Ejecución Rápida
-
-1. Ejecuta el servidor local:
+1. Inicie el servidor local ejecutando el script:
    ```bash
    ./iniciar_servidor.sh
    ```
-2. Abre en tu navegador: `http://localhost:8000`
+2. Abra el navegador en: `http://localhost:8000`
 
----
+## Asistente ChatOps (Opcional)
 
-## 🤖 Asistente de IA (ChatOps)
-Puedes activar el chatbot de IA en la pestaña **Configuración** (`#config`) ingresando tu clave API de DeepSeek. La clave se almacena de forma segura y privada únicamente en el `localStorage` de tu navegador.
+Para utilizar el asistente de IA, introduzca su API key de DeepSeek en la pestaña de Configuración. La clave se almacena localmente en el navegador (localStorage) y no se comparte con ningún servidor externo.
