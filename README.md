@@ -64,3 +64,18 @@ El dashboard cuenta con un sistema de navegación por pestañas indexado por la 
    ./iniciar_servidor.sh
    ```
 3. Abre tu navegador web en: **`http://localhost:8000`**
+
+---
+
+## 🤖 Integración ChatOps (Asistente de IA Opcional)
+
+CalCloud cuenta con un copiloto de operaciones en tiempo real impulsado por la API de **DeepSeek**. Para utilizarlo de forma segura y privada:
+
+1. Ingresa al panel de control en tu navegador.
+2. Ve a la pestaña **Configuración** (`#config`).
+3. En la sección **Asistente de IA (ChatOps)**, introduce tu clave API de DeepSeek (`sk-...`).
+4. Haz clic en **Guardar**.
+
+> [!NOTE]
+> Por motivos de seguridad y para cumplir con las mejores prácticas de desarrollo, **tu clave de API no se almacena en el servidor ni se sube a GitHub**. Se guarda exclusivamente de forma local en el `localStorage` de tu propio navegador web, y las llamadas a la API de DeepSeek se realizan de manera directa y cifrada desde tu cliente.
+
