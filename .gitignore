@@ -21,4 +21,5 @@ yarn-error.log*
 # Archivos de documentación y PDF (se mantienen locales)
 *.pdf
 *.md
+!README.md
 
