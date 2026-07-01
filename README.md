@@ -1,6 +1,6 @@
 # CalCloud
 
-CalCloud es un simulador interactivo de autoscaling desarrollado para la asignatura de Cálculo Diferencial en INACAP Talca. Compara el uso de políticas de escalado predictivas (basadas en la derivada del tráfico) con políticas reactivas tradicionales de umbrales estáticos.
+CalCloud es un simulador interactivo de autoscaling desarrollado para la asignatura de Cálculo Diferencial. Compara el uso de políticas de escalado predictivas (basadas en la derivada del tráfico) con políticas reactivas tradicionales de umbrales estáticos.
 
 ## Instalación y ejecución
 
