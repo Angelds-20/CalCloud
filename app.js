@@ -905,6 +905,22 @@ function setupEvents() {
         inputEl.value = '';
         messagesEl.scrollTop = messagesEl.scrollHeight;
 
+        // --- FROZEN STATE SNAPSHOT (capturado antes de cualquier async) ---
+        const snapTraffic = trafficHistory.length > 0 ? trafficHistory[trafficHistory.length - 1] : 0;
+        const snapPrevTraffic = trafficHistory.length > 1 ? trafficHistory[trafficHistory.length - 2] : snapTraffic;
+        const snapActiveServers = activeStrategy === 'calcloud' ? metrics.calcloud.servers : metrics.reactive.servers;
+        const snapCalServers = metrics.calcloud.servers;
+        const snapMu = mu;
+        const snapStartup = startup_delay;
+        const snapAnomaly = anomaly_percent;
+        const snapAccumCost = activeStrategy === 'calcloud' ? metrics.calcloud.accumCost : metrics.reactive.accumCost;
+        const snapAccumSLA = activeStrategy === 'calcloud' ? metrics.calcloud.accumSLA : metrics.reactive.accumSLA;
+        const snapLatency = calculateLatency(snapActiveServers, snapTraffic, mu);
+        const snapCapacity = snapActiveServers * mu;
+        const snapEma = metrics.calcloud.traffic_ema;
+        const snapEmaDiff = metrics.calcloud.traffic_ema - metrics.calcloud.last_traffic_ema;
+        // --- END SNAPSHOT ---
+
         // Append thinking steps animation
         const thinkingSteps = [
             "Analizando tendencia de tráfico",
@@ -942,20 +958,21 @@ function setupEvents() {
             }
         }, 180);
 
-        const currentTraffic = parseFloat(document.getElementById('stat-traffic').innerText);
-        const prevTraffic = trafficHistory.length > 1 ? parseFloat(trafficHistory[trafficHistory.length - 2]) : currentTraffic;
-        const activeCal = metrics.calcloud.servers;
-        const activeReact = metrics.reactive.servers;
+        const promptText = `Métricas actuales (snapshot congelado):
+- Tráfico anterior: ${snapPrevTraffic.toFixed(1)} req/s
+- Tráfico actual: ${snapTraffic.toFixed(1)} req/s
+- Servidores activos: ${snapCalServers}
+- Capacidad por servidor (μ): ${snapMu} req/s
+- Tiempo de arranque (Ta): ${snapStartup}s
+- Anomalía: ${snapAnomaly}%
+- Costo acumulado: $${snapAccumCost.toFixed(2)}
+- Multas SLA: $${snapAccumSLA.toFixed(2)}
 
-        const promptText = `Métricas actuales:
-- Tráfico anterior: ${prevTraffic.toFixed(1)} req/s
-- Tráfico actual: ${currentTraffic.toFixed(1)} req/s
-- Servidores activos: ${activeCal}
-- Capacidad por servidor (μ): ${mu} req/s
-- Tiempo de arranque (Ta): ${startup_delay}s
-- Anomalía: ${anomaly_percent}%
-- Costo acumulado: $${metrics.calcloud.accumCost.toFixed(2)}
-- Multas SLA: $${metrics.calcloud.accumSLA.toFixed(2)}
+Debug (snapshot):
+- traffic = ${snapTraffic.toFixed(1)} req/s
+- servers = ${snapCalServers}
+- latency = ${(snapLatency * 1000).toFixed(0)} ms
+- cost = $${snapAccumCost.toFixed(2)}
 
 Usuario: "${text}"`;
 
@@ -1028,6 +1045,8 @@ Confianza
 
 Si el usuario pide alterar parámetros (tráfico, mu, anomalías, servidores, pausar), inclúyelos en "updates". Para DDoS: separa tráfico legítimo vs anómalo y describe mitigación.
 
+Debes incluir EXACTAMENTE los valores que recibiste en el campo "debug" para verificar sincronización. NO inventes ni redondees los debug values.
+
 Responde EXCLUSIVAMENTE en JSON. NO uses bloques markdown \`\`\`json. Solo JSON crudo:
 {
   "response": "Texto con la estructura exacta descrita arriba.",
@@ -1038,6 +1057,12 @@ Responde EXCLUSIVAMENTE en JSON. NO uses bloques markdown \`\`\`json. Solo JSON 
     "anomaly_percent": número opcional entre 0 y 1500,
     "servers": número opcional entre 1 y 10,
     "isRunning": booleano opcional
+  },
+  "debug": {
+    "traffic": número (valor exacto de traffic recibido),
+    "servers": número (valor exacto de servers recibido),
+    "latency": número (valor exacto de latency recibido en ms),
+    "cost": número (valor exacto de cost recibido)
   }
 }`
                         },
@@ -1096,6 +1121,30 @@ Responde EXCLUSIVAMENTE en JSON. NO uses bloques markdown \`\`\`json. Solo JSON 
             typeMessage(aiMsg, `<strong>CloudOps Agent:</strong><br>${formattedResponse}`, () => {
                 messagesEl.scrollTop = messagesEl.scrollHeight;
             });
+
+            // Show debug synchronization data
+            if (parsed.debug) {
+                const debugMsg = document.createElement('div');
+                debugMsg.style.cssText = 'background: rgba(255, 255, 255, 0.02); border: 1px dashed var(--border); border-radius: 4px; padding: 0.4rem 0.6rem; align-self: flex-start; max-width: 85%; line-height: 1.4; font-size: 10px; font-family: var(--font-mono); color: var(--text-muted); margin-bottom: 0.5rem;';
+                const debugTrafficMatch = parsed.debug.traffic !== undefined ? Math.abs(parsed.debug.traffic - snapTraffic) < 0.5 : '?';
+                const debugServersMatch = parsed.debug.servers !== undefined ? parsed.debug.servers === snapCalServers : '?';
+                const syncOk = debugTrafficMatch === true && debugServersMatch === true;
+                debugMsg.innerHTML = `
+                    <div style="display: flex; align-items: center; gap: 6px; margin-bottom: 4px;">
+                        <span style="color: ${syncOk ? 'var(--success)' : 'var(--error)'};">${syncOk ? '●' : '○'}</span>
+                        <span style="font-weight: 600; color: var(--text-secondary);">Debug Sync</span>
+                    </div>
+                    <table style="width: 100%; border-collapse: collapse; font-size: 9px;">
+                        <tr><td style="padding: 1px 4px; color: var(--text-tertiary);">Métrica</td><td style="padding: 1px 4px; color: var(--accent);">Snapshot</td><td style="padding: 1px 4px; color: var(--warning);">IA reporta</td></tr>
+                        <tr><td style="padding: 1px 4px;">traffic</td><td style="padding: 1px 4px;">${snapTraffic.toFixed(1)}</td><td style="padding: 1px 4px;">${parsed.debug.traffic !== undefined ? parsed.debug.traffic : 'N/A'}</td></tr>
+                        <tr><td style="padding: 1px 4px;">servers</td><td style="padding: 1px 4px;">${snapCalServers}</td><td style="padding: 1px 4px;">${parsed.debug.servers !== undefined ? parsed.debug.servers : 'N/A'}</td></tr>
+                        <tr><td style="padding: 1px 4px;">latency (ms)</td><td style="padding: 1px 4px;">${(snapLatency * 1000).toFixed(0)}</td><td style="padding: 1px 4px;">${parsed.debug.latency !== undefined ? parsed.debug.latency : 'N/A'}</td></tr>
+                        <tr><td style="padding: 1px 4px;">cost</td><td style="padding: 1px 4px;">${snapAccumCost.toFixed(2)}</td><td style="padding: 1px 4px;">${parsed.debug.cost !== undefined ? parsed.debug.cost : 'N/A'}</td></tr>
+                    </table>
+                `;
+                messagesEl.appendChild(debugMsg);
+                messagesEl.scrollTop = messagesEl.scrollHeight;
+            }
 
             // Apply updates
             if (parsed.updates) {
